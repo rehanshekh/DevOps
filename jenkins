@@ -1,0 +1,40 @@
+pipeline {
+   agent any
+   stages {
+       stage('git') {
+           steps {
+               git 'https://github.com/rehanshekh/chat-app'
+           }
+       }
+       stage("SonarQube Analysis"){
+           steps{
+               script{
+                   def scannerHome = tool 'sonar-scanner'
+                   withSonarQubeEnv(credentialsId: 'sq1') {
+    sh "${tool("sonar-scanner")}/bin/sonar-scanner -Dsonar.projectKey=chatapp -Dsonar.projectName=chatapp" 
+}
+       }
+           }
+       }
+       stage("Quality Gate") {
+            steps {
+              timeout(time: 1, unit: 'HOURS') {
+                waitForQualityGate abortPipeline: true
+              }
+            }
+          }
+       stage('build') {
+           steps {
+              sshagent(['jenkins-deploy']) {
+              sh "scp -r -o StrictHostKeyChecking=no fundoo ansible-master@10.140.0.5:/home/ansible-master/new_chatapp "
+           }
+}
+   }
+   stage('deploy') {
+           steps {
+              sh 'ssh -i /var/lib/jenkins/jenkins.pem ansible-master@10.140.0.5 "bash /home/ansible-master/new_chatapp/scripts/Start_Server.sh"'
+}
+}
+
+   }
+}
